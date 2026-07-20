@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -134,6 +134,78 @@ class AgentTrace(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     task: Mapped[AgentTask] = relationship(back_populates="traces")
+
+
+class UserFeedback(Base, TimestampMixin):
+    """Explicit human feedback attached to one agent execution.
+
+    A user can revise their feedback, but there is only one current feedback
+    record per task/user pair.  Keeping this separate from the task makes the
+    reward pipeline auditable and prevents feedback from overwriting traces.
+    """
+
+    __tablename__ = "user_feedback"
+    __table_args__ = (
+        UniqueConstraint("task_id", "user_id", name="uq_user_feedback_task_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(ForeignKey("agent_tasks.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(String(255), default="default", index=True)
+    rating: Mapped[int] = mapped_column(Integer)
+    issue_tags: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    comment: Mapped[str] = mapped_column(Text, default="")
+
+
+class RewardEvent(Base):
+    """A reproducible reward calculation, including its individual signals."""
+
+    __tablename__ = "reward_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(ForeignKey("agent_tasks.id", ondelete="CASCADE"), index=True)
+    feedback_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_feedback.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[str] = mapped_column(String(255), default="default", index=True)
+    reward_type: Mapped[str] = mapped_column(String(50), default="weak")
+    reward: Mapped[float] = mapped_column(Float, default=0.0)
+    components: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    source: Mapped[str] = mapped_column(String(100), default="automatic")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PolicyDecision(Base):
+    """The policy action selected for a task, persisted for offline replay."""
+
+    __tablename__ = "policy_decisions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(ForeignKey("agent_tasks.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(String(255), default="default", index=True)
+    policy_name: Mapped[str] = mapped_column(String(100), default="fixed")
+    policy_version: Mapped[str] = mapped_column(String(100), default="v1")
+    action: Mapped[str] = mapped_column(String(100))
+    context: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    action_scores: Mapped[dict[str, float]] = mapped_column(JsonType, default=dict)
+    propensity: Mapped[float] = mapped_column(Float, default=1.0)
+    exploration: Mapped[bool] = mapped_column(default=False)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelVersion(Base, TimestampMixin):
+    """Metadata only; model weights stay outside the source repository."""
+
+    __tablename__ = "model_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    base_model: Mapped[str] = mapped_column(String(500))
+    adapter_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    stage: Mapped[str] = mapped_column(String(50), default="candidate")
+    metrics: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    training_config: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
 
 
 class ImprovementSuggestion(Base, TimestampMixin):

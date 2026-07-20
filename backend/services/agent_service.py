@@ -9,6 +9,7 @@ from backend.config import get_settings
 from backend.schemas import AgentAnswerRead, RetrievedChunkRead
 from backend.services.memory_service import MemoryService
 from backend.services.paper_service import PaperService
+from backend.services.reward_service import RewardService
 from backend.services.skill_service import SkillService
 from backend.services.trace_service import TraceService
 from rag.retrievers.langchain_retriever import PaperHermesRetriever
@@ -22,6 +23,7 @@ class PaperAgentService:
         self.trace_service = TraceService(db)
         self.memory_service = MemoryService(db)
         self.skill_service = SkillService(db)
+        self.reward_service = RewardService(db)
         self.llm = PaperHermesLLM(
             provider=self.settings.llm_provider,
             model=self.settings.llm_model,
@@ -63,8 +65,10 @@ class PaperAgentService:
                 agent_name=step.get("agent_name", "Unknown"),
                 step_name=step.get("step_name", "unknown"),
                 output_json={"output": step.get("output", "")},
+                retrieved_chunks=step.get("retrieved_chunks", []),
             )
         self.trace_service.finish_task(task.id, state.get("final_answer", ""))
+        self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
         citations_raw = state.get("citations", state.get("chunks", []))
         return AgentAnswerRead(
             task_id=task.id,
@@ -104,8 +108,10 @@ class PaperAgentService:
                 agent_name=step.get("agent_name", "Unknown"),
                 step_name=step.get("step_name", "unknown"),
                 output_json={"output": step.get("output", "")},
+                retrieved_chunks=step.get("retrieved_chunks", []),
             )
         self.trace_service.finish_task(task.id, state.get("final_answer", ""))
+        self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
         citations_raw = state.get("citations", state.get("chunks", []))
         return AgentAnswerRead(
             task_id=task.id,

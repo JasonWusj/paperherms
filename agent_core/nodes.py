@@ -318,6 +318,8 @@ def make_retrieve_node(retriever: Any) -> Callable[[PaperAgentState], dict]:
                         "text": doc.page_content,
                         "section_title": metadata.get("section_title", ""),
                         "score": metadata.get("score", 0.0),
+                        "page_start": metadata.get("page_start"),
+                        "page_end": metadata.get("page_end"),
                     })
             # Otherwise use .search (custom interface returning RetrievedChunk)
             else:
@@ -333,10 +335,20 @@ def make_retrieve_node(retriever: Any) -> Callable[[PaperAgentState], dict]:
                         "text": getattr(r, "text", ""),
                         "section_title": getattr(r, "section_title", ""),
                         "score": getattr(r, "score", 0.0),
+                        "page_start": getattr(r, "page_start", None),
+                        "page_end": getattr(r, "page_end", None),
                     }
                     for r in results
                 ]
-            return {"chunks": chunks}
+            return {
+                "chunks": chunks,
+                "trace_steps": [{
+                    "agent_name": "RetrievalAgent",
+                    "step_name": "retrieve_evidence",
+                    "output": {"evidence_count": len(chunks)},
+                    "retrieved_chunks": chunks,
+                }],
+            }
         except Exception:
             return {"chunks": []}
     return node

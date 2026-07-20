@@ -85,6 +85,42 @@ export type AgentTaskLearning = {
   workflow_lessons: Record<string, unknown>[];
 };
 
+export type Citation = {
+  id: string;
+  paper_id: string;
+  text: string;
+  section_title: string;
+  score: number;
+  page_start: number | null;
+  page_end: number | null;
+};
+
+export type AgentAnswer = {
+  task_id: string;
+  answer: string;
+  citations: Citation[];
+  policy_decision?: Record<string, unknown>;
+  model_version?: string | null;
+  metrics?: Record<string, unknown>;
+};
+
+export type FeedbackSubmission = {
+  feedback: {
+    id: string;
+    task_id: string;
+    user_id: string;
+    rating: -1 | 1;
+    issue_tags: string[];
+    comment: string;
+  };
+  reward: {
+    id: string;
+    reward_type: string;
+    reward: number;
+    components: Record<string, unknown>;
+  };
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${resolveApiBase()}${path}`, {
     ...options,
@@ -121,7 +157,7 @@ export const api = {
       body: JSON.stringify({ status })
     }),
   askPaper: (paperId: string, question: string) =>
-    request<{ task_id: string; answer: string }>(`/papers/${paperId}/chat`, {
+    request<AgentAnswer>(`/papers/${paperId}/chat`, {
       method: "POST",
       body: JSON.stringify({ question })
     }),
@@ -131,4 +167,9 @@ export const api = {
   agentTask: (taskId: string) => request<AgentTask>(`/agent/tasks/${taskId}`),
   agentTrace: (taskId: string) => request<TraceStep[]>(`/agent/tasks/${taskId}/trace`),
   agentLearning: (taskId: string) => request<AgentTaskLearning>(`/agent/tasks/${taskId}/learning`)
+  ,submitFeedback: (taskId: string, rating: -1 | 1, issueTags: string[] = [], comment = "") =>
+    request<FeedbackSubmission>(`/agent/tasks/${taskId}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: "default", rating, issue_tags: issueTags, comment })
+    })
 };

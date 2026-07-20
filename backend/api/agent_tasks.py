@@ -13,13 +13,18 @@ from backend.schemas import (
     ImprovementRevisionRollback,
     ImprovementSuggestionApply,
     ImprovementSuggestionReview,
+    RewardEventRead,
     TraceRead,
+    UserFeedbackCreate,
+    UserFeedbackRead,
+    UserFeedbackSubmissionRead,
 )
 from backend.services.memory_service import MemoryService
 from backend.services.skill_service import SkillService
 from backend.services.agent_service import PaperAgentService
 from backend.services.evaluation_service import HermesEvaluationService
 from backend.services.improvement_service import HermesImprovementService
+from backend.services.reward_service import RewardService
 from backend.services.trace_service import TraceService
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -43,6 +48,21 @@ def create_agent_task(payload: AgentTaskCreate, db: Session = Depends(get_db)):
 @router.get("/tasks", response_model=list[AgentTaskRead])
 def list_agent_tasks(limit: int = Query(default=20, ge=1, le=100), db: Session = Depends(get_db)):
     return TraceService(db).list_tasks(limit=limit)
+
+
+@router.get("/rewards", response_model=list[RewardEventRead])
+def list_reward_events(
+    task_id: str | None = None,
+    user_id: str | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    return RewardService(db).list_events(task_id=task_id, user_id=user_id, limit=limit)
+
+
+@router.get("/rewards/summary")
+def get_reward_summary(user_id: str | None = None, db: Session = Depends(get_db)):
+    return RewardService(db).summarize(user_id=user_id)
 
 
 @router.get("/evaluation")
@@ -145,6 +165,36 @@ def get_agent_task(task_id: str, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+@router.get("/tasks/{task_id}/feedback", response_model=UserFeedbackRead)
+def get_agent_feedback(
+    task_id: str,
+    user_id: str = "default",
+    db: Session = Depends(get_db),
+):
+    task = TraceService(db).get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    feedback = RewardService(db).get_feedback(task_id, user_id)
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    return feedback
+
+
+@router.post("/tasks/{task_id}/feedback", response_model=UserFeedbackSubmissionRead)
+def submit_agent_feedback(
+    task_id: str,
+    payload: UserFeedbackCreate,
+    db: Session = Depends(get_db),
+):
+    task = TraceService(db).get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != "completed":
+        raise HTTPException(status_code=409, detail="Feedback is only accepted for completed tasks")
+    feedback, reward = RewardService(db).upsert_feedback(task, payload)
+    return {"feedback": feedback, "reward": reward}
 
 
 @router.get("/tasks/{task_id}/trace", response_model=list[TraceRead])

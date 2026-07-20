@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -78,6 +78,50 @@ class AgentAnswerRead(BaseModel):
     task_id: str
     answer: str
     citations: list[RetrievedChunkRead] = []
+    policy_decision: dict[str, Any] = Field(default_factory=dict)
+    model_version: str | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class UserFeedbackCreate(BaseModel):
+    """Create or replace explicit feedback for one completed task."""
+
+    user_id: str = "default"
+    rating: Literal[-1, 1]
+    issue_tags: list[str] = Field(default_factory=list, max_length=10)
+    comment: str = Field(default="", max_length=2000)
+
+
+class UserFeedbackRead(BaseModel):
+    id: str
+    task_id: str
+    user_id: str
+    rating: int
+    issue_tags: list[str]
+    comment: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RewardEventRead(BaseModel):
+    id: str
+    task_id: str
+    feedback_id: str | None
+    user_id: str
+    reward_type: str
+    reward: float
+    components: dict[str, Any]
+    source: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UserFeedbackSubmissionRead(BaseModel):
+    feedback: UserFeedbackRead
+    reward: RewardEventRead
 
 
 class MemoryCreate(BaseModel):

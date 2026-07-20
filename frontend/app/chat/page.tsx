@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FileText, MessageSquare, Search, Send } from "lucide-react";
+import { FileText, MessageSquare, Search, Send, ThumbsDown, ThumbsUp } from "lucide-react";
 import { EmptyState, PageHeader, StatCard, StatusPill } from "@/components/PageChrome";
 import { Panel } from "@/components/Panel";
-import { Paper, api } from "@/lib/api";
+import { Citation, Paper, api } from "@/lib/api";
+
+const feedbackTags = ["引用不准确", "遗漏关键信息", "回答不相关", "内容有幻觉"];
 
 function paperLabel(paper: Paper) {
   return paper.title || paper.original_filename || paper.id;
@@ -19,6 +21,10 @@ export default function ChatPage() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [traceId, setTraceId] = useState("");
+  const [citations, setCitations] = useState<Citation[]>([]);
+  const [feedbackRating, setFeedbackRating] = useState<-1 | 1 | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const selectedPaper = papers.find((paper) => paper.id === paperId);
   const canAsk = Boolean(paperId && question.trim() && !isAsking);
@@ -52,16 +58,39 @@ export default function ChatPage() {
 
     setIsAsking(true);
     setTraceId("");
+    setCitations([]);
+    setFeedbackRating(null);
+    setSelectedTags([]);
+    setFeedbackMessage("");
     setAnswer("正在检索论文证据并调用分析 Agent...");
     try {
       const result = await api.askPaper(paperId, question);
       setTraceId(result.task_id);
       setAnswer(result.answer);
+      setCitations(result.citations ?? []);
     } catch (error) {
       setAnswer(error instanceof Error ? error.message : "请求失败");
     } finally {
       setIsAsking(false);
     }
+  }
+
+  async function submitFeedback(rating: -1 | 1) {
+    if (!traceId) return;
+    setFeedbackMessage("正在记录反馈...");
+    try {
+      const result = await api.submitFeedback(traceId, rating, rating < 0 ? selectedTags : []);
+      setFeedbackRating(rating);
+      setFeedbackMessage(`反馈已记录 · Reward ${result.reward.reward.toFixed(3)}`);
+    } catch (error) {
+      setFeedbackMessage(error instanceof Error ? error.message : "反馈提交失败");
+    }
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((current) =>
+      current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]
+    );
   }
 
   return (
@@ -145,12 +174,45 @@ export default function ChatPage() {
             <div className="min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">{answer || "暂无回答。"}</pre>
             </div>
+            {citations.length ? (
+              <div className="mt-4 space-y-2">
+                <div className="text-sm font-semibold text-ink">检索证据</div>
+                {citations.map((citation, index) => (
+                  <details key={citation.id || index} className="rounded-md border border-slate-200 bg-white p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-moss">
+                      [{index + 1}] {citation.section_title || "未知章节"}
+                      {citation.page_start ? ` · 第 ${citation.page_start} 页` : ""}
+                    </summary>
+                    <p className="mt-2 text-xs leading-6 text-slate-600">{citation.text}</p>
+                  </details>
+                ))}
+              </div>
+            ) : null}
             {traceId ? (
-              <div className="mt-4 flex justify-end">
-                <Link href="/traces" className="inline-flex items-center gap-2 text-sm font-semibold text-moss hover:text-moss/80">
-                  查看执行追踪
-                  <Search className="h-4 w-4" />
-                </Link>
+              <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-slate-600">这个回答有帮助吗？</span>
+                  <button onClick={() => submitFeedback(1)} className={`rounded-md border p-2 ${feedbackRating === 1 ? "border-moss bg-moss/10 text-moss" : "border-slate-300"}`} aria-label="有帮助">
+                    <ThumbsUp className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => submitFeedback(-1)} className={`rounded-md border p-2 ${feedbackRating === -1 ? "border-rust bg-rust/10 text-rust" : "border-slate-300"}`} aria-label="没有帮助">
+                    <ThumbsDown className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs text-slate-500">{feedbackMessage}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {feedbackTags.map((tag) => (
+                    <button key={tag} onClick={() => toggleTag(tag)} className={`rounded-full border px-3 py-1 text-xs ${selectedTags.includes(tag) ? "border-rust bg-rust/10 text-rust" : "border-slate-300 text-slate-600"}`}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <Link href="/traces" className="inline-flex items-center gap-2 text-sm font-semibold text-moss hover:text-moss/80">
+                    查看执行追踪
+                    <Search className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
             ) : null}
           </Panel>

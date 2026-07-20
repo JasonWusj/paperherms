@@ -29,6 +29,8 @@ class PaperHermesRetriever(BaseRetriever):
                     "paper_id": chunk.paper_id,
                     "section_title": chunk.section_title,
                     "score": chunk.score,
+                    "page_start": chunk.page_start,
+                    "page_end": chunk.page_end,
                 },
             )
             for chunk in chunks
