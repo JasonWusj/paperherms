@@ -37,6 +37,10 @@ postgres_data/
 *.sqlite3
 *.log
 logs/
+artifacts/
+training/data/
+training/outputs/
+training/checkpoints/
 
 # Private datasets, database dumps, and large binary assets
 backups/
@@ -49,6 +53,7 @@ import_papers/
 *.pt
 *.pth
 *.ckpt
+*.jsonl.tmp
 models/*
 !models/README.md
 !models/.gitkeep

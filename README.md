@@ -31,6 +31,10 @@ The default `LLM_PROVIDER=stub` is safe for smoke tests. For real answers, confi
 
 The default `POLICY_NAME=fixed` preserves the balanced baseline. Set `POLICY_NAME=linucb` to enable cold-start exploration and online LinUCB updates. Each task stores its context, action scores, propensity, selected arm, reward components, and policy version. Policy statistics and capped inverse-propensity replay are available from `/api/agent/policy/summary` and `/api/agent/policy/replay`.
 
+### Model training
+
+The [`training`](training/README.md) package provides paper-level leak-free dataset construction, Qwen2.5-1.5B NF4 QLoRA-SFT, adapter merging, DPO, and Base/SFT/DPO citation evaluation. Training data, checkpoints, adapters, and merged weights are stored under the ignored `artifacts/` directory; only synthetic fixtures are committed.
+
 ## Data and model policy
 
 Private `.env` files, database backups, uploaded PDFs, vector-store data, and model weights are ignored by Git. The repository contains only synthetic fixtures under `examples/`; use the download/import scripts to obtain local data.
