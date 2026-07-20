@@ -326,7 +326,7 @@ def make_retrieve_node(retriever: Any) -> Callable[[PaperAgentState], dict]:
                 results = retriever.search(
                     state["user_input"],
                     paper_id=state.get("paper_id", ""),
-                    limit=5,
+                    limit=int(state.get("retrieval_limit", 5) or 5),
                 )
                 chunks = [
                     {

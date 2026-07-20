@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.db.session import get_db
+from backend.db.models import PolicyDecision
 from backend.schemas import (
     AgentTaskCreate,
     AgentTaskLearningRead,
@@ -22,6 +24,7 @@ from backend.schemas import (
 from backend.services.memory_service import MemoryService
 from backend.services.skill_service import SkillService
 from backend.services.agent_service import PaperAgentService
+from backend.services.bandit_service import BanditService
 from backend.services.evaluation_service import HermesEvaluationService
 from backend.services.improvement_service import HermesImprovementService
 from backend.services.reward_service import RewardService
@@ -63,6 +66,47 @@ def list_reward_events(
 @router.get("/rewards/summary")
 def get_reward_summary(user_id: str | None = None, db: Session = Depends(get_db)):
     return RewardService(db).summarize(user_id=user_id)
+
+
+@router.get("/policy/summary")
+def get_policy_summary(db: Session = Depends(get_db)):
+    return BanditService(db).summary()
+
+
+@router.post("/policy/replay")
+def replay_policy(
+    limit: int = Query(default=1000, ge=1, le=10000),
+    db: Session = Depends(get_db),
+):
+    return BanditService(db).offline_replay(limit=limit)
+
+
+@router.get("/policy/decisions")
+def list_policy_decisions(
+    user_id: str | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    statement = select(PolicyDecision).order_by(PolicyDecision.created_at.desc()).limit(limit)
+    if user_id:
+        statement = statement.where(PolicyDecision.user_id == user_id)
+    return [
+        {
+            "id": item.id,
+            "task_id": item.task_id,
+            "user_id": item.user_id,
+            "policy_name": item.policy_name,
+            "policy_version": item.policy_version,
+            "action": item.action,
+            "context": item.context,
+            "action_scores": item.action_scores,
+            "propensity": item.propensity,
+            "exploration": item.exploration,
+            "reason": item.reason,
+            "created_at": item.created_at,
+        }
+        for item in db.scalars(statement)
+    ]
 
 
 @router.get("/evaluation")
@@ -194,6 +238,7 @@ def submit_agent_feedback(
     if task.status != "completed":
         raise HTTPException(status_code=409, detail="Feedback is only accepted for completed tasks")
     feedback, reward = RewardService(db).upsert_feedback(task, payload)
+    BanditService(db).update_from_reward(task.id, reward)
     return {"feedback": feedback, "reward": reward}
 
 

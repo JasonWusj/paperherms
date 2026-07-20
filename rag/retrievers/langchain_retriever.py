@@ -12,6 +12,7 @@ class PaperHermesRetriever(BaseRetriever):
 
     paper_retriever: Any
     paper_id: str
+    limit: int = 5
 
     def _get_relevant_documents(
         self,
@@ -20,7 +21,7 @@ class PaperHermesRetriever(BaseRetriever):
         run_manager: CallbackManagerForRetrieverRun | None = None,
         **kwargs: Any,
     ) -> list[Document]:
-        chunks = self.paper_retriever.search(query, paper_id=self.paper_id, limit=5)
+        chunks = self.paper_retriever.search(query, paper_id=self.paper_id, limit=self.limit)
         return [
             Document(
                 page_content=chunk.text,

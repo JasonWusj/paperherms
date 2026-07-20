@@ -166,8 +166,8 @@ export const api = {
   agentTasks: (limit = 20) => request<AgentTask[]>(`/agent/tasks?limit=${limit}`),
   agentTask: (taskId: string) => request<AgentTask>(`/agent/tasks/${taskId}`),
   agentTrace: (taskId: string) => request<TraceStep[]>(`/agent/tasks/${taskId}/trace`),
-  agentLearning: (taskId: string) => request<AgentTaskLearning>(`/agent/tasks/${taskId}/learning`)
-  ,submitFeedback: (taskId: string, rating: -1 | 1, issueTags: string[] = [], comment = "") =>
+  agentLearning: (taskId: string) => request<AgentTaskLearning>(`/agent/tasks/${taskId}/learning`),
+  submitFeedback: (taskId: string, rating: -1 | 1, issueTags: string[] = [], comment = "") =>
     request<FeedbackSubmission>(`/agent/tasks/${taskId}/feedback`, {
       method: "POST",
       body: JSON.stringify({ user_id: "default", rating, issue_tags: issueTags, comment })

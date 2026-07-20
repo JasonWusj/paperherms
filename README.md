@@ -9,6 +9,7 @@ PaperHermes is a research-paper assistant built around retrieval-augmented gener
 - LangGraph workflow with intent routing, planning, specialist agents, synthesis, reflection, memory recall, and skill recall.
 - OpenAI-compatible and stub LLM providers, so local development does not require a key.
 - Agent traces, evaluation suites, replayable regression cases, improvement suggestions, review, and rollback.
+- Human feedback rewards and an auditable LinUCB policy controller for economy, balanced, and deep retrieval arms.
 - Next.js frontend for papers, chat, traces, memories, skills, and learning review.
 
 ## Quick start
@@ -25,6 +26,10 @@ PaperHermes is a research-paper assistant built around retrieval-augmented gener
 5. Upload a PDF from the web UI, wait for indexing, and ask a question in the chat page.
 
 The default `LLM_PROVIDER=stub` is safe for smoke tests. For real answers, configure an OpenAI-compatible endpoint using environment variables only.
+
+### Policy learning
+
+The default `POLICY_NAME=fixed` preserves the balanced baseline. Set `POLICY_NAME=linucb` to enable cold-start exploration and online LinUCB updates. Each task stores its context, action scores, propensity, selected arm, reward components, and policy version. Policy statistics and capped inverse-propensity replay are available from `/api/agent/policy/summary` and `/api/agent/policy/replay`.
 
 ## Data and model policy
 

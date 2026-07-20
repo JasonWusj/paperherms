@@ -11,6 +11,8 @@ class PaperAgentState(TypedDict, total=False):
     user_id: str
     task_id: str
     task_type: str  # summary / method / experiments / novelty / limitations / chat / compare / related_work
+    strategy: str
+    retrieval_limit: int
 
     # Intermediate state. Annotated lists support LangGraph fan-in merging.
     memories: list[dict[str, Any]]

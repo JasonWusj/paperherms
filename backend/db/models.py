@@ -194,6 +194,22 @@ class PolicyDecision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BanditState(Base, TimestampMixin):
+    """Serialized LinUCB state; arrays are JSON for portable PostgreSQL/SQLite use."""
+
+    __tablename__ = "bandit_states"
+
+    state_key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    policy_version: Mapped[str] = mapped_column(String(100), default="linucb-v1")
+    dimension: Mapped[int] = mapped_column(Integer, default=8)
+    alpha: Mapped[float] = mapped_column(Float, default=0.5)
+    epsilon: Mapped[float] = mapped_column(Float, default=0.1)
+    actions: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    parameters: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    counts: Mapped[dict[str, int]] = mapped_column(JsonType, default=dict)
+    total_updates: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class ModelVersion(Base, TimestampMixin):
     """Metadata only; model weights stay outside the source repository."""
 

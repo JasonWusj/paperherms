@@ -25,6 +25,7 @@ export default function ChatPage() {
   const [feedbackRating, setFeedbackRating] = useState<-1 | 1 | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [policyAction, setPolicyAction] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const selectedPaper = papers.find((paper) => paper.id === paperId);
   const canAsk = Boolean(paperId && question.trim() && !isAsking);
@@ -62,12 +63,15 @@ export default function ChatPage() {
     setFeedbackRating(null);
     setSelectedTags([]);
     setFeedbackMessage("");
+    setPolicyAction("");
     setAnswer("正在检索论文证据并调用分析 Agent...");
     try {
       const result = await api.askPaper(paperId, question);
       setTraceId(result.task_id);
       setAnswer(result.answer);
       setCitations(result.citations ?? []);
+      const selectedAction = result.policy_decision?.action;
+      setPolicyAction(typeof selectedAction === "string" ? selectedAction : "");
     } catch (error) {
       setAnswer(error instanceof Error ? error.message : "请求失败");
     } finally {
@@ -169,7 +173,12 @@ export default function ChatPage() {
 
           <Panel
             title="回答结果"
-            action={traceId ? <StatusPill label={`追踪编号 ${traceId.slice(0, 8)}`} tone="green" /> : <StatusPill label="等待回答" />}
+            action={traceId ? (
+              <div className="flex items-center gap-2">
+                {policyAction ? <StatusPill label={`策略 ${policyAction}`} tone="amber" /> : null}
+                <StatusPill label={`追踪编号 ${traceId.slice(0, 8)}`} tone="green" />
+              </div>
+            ) : <StatusPill label="等待回答" />}
           >
             <div className="min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">{answer || "暂无回答。"}</pre>

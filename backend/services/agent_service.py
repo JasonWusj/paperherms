@@ -8,6 +8,7 @@ from agent_core.llm import PaperHermesLLM
 from backend.config import get_settings
 from backend.schemas import AgentAnswerRead, RetrievedChunkRead
 from backend.services.memory_service import MemoryService
+from backend.services.bandit_service import BanditService
 from backend.services.paper_service import PaperService
 from backend.services.reward_service import RewardService
 from backend.services.skill_service import SkillService
@@ -24,6 +25,7 @@ class PaperAgentService:
         self.memory_service = MemoryService(db)
         self.skill_service = SkillService(db)
         self.reward_service = RewardService(db)
+        self.bandit_service = BanditService(db, self.settings)
         self.llm = PaperHermesLLM(
             provider=self.settings.llm_provider,
             model=self.settings.llm_model,
@@ -39,9 +41,13 @@ class PaperAgentService:
             user_id=user_id,
             paper_id=paper_id,
         )
+        policy_decision = self.bandit_service.choose(task)
+        self.bandit_service.record_decision(task, policy_decision)
         self.paper_service.search(paper_id, question, limit=1)
         retriever = PaperHermesRetriever(
-            paper_retriever=self.paper_service.retriever, paper_id=paper_id
+            paper_retriever=self.paper_service.retriever,
+            paper_id=paper_id,
+            limit=self.bandit_service.retrieval_limit(policy_decision["action"]),
         )
         graph = build_paper_graph(
             llm=self.llm,
@@ -56,6 +62,8 @@ class PaperAgentService:
             "user_id": user_id,
             "task_id": task.id,
             "task_type": "chat",
+            "strategy": policy_decision["action"],
+            "retrieval_limit": self.bandit_service.retrieval_limit(policy_decision["action"]),
         })
         # Record trace steps from graph state
         for step in state.get("trace_steps", []):
@@ -68,12 +76,16 @@ class PaperAgentService:
                 retrieved_chunks=step.get("retrieved_chunks", []),
             )
         self.trace_service.finish_task(task.id, state.get("final_answer", ""))
-        self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
+        reward = self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
+        self.bandit_service.update_from_reward(task.id, reward)
         citations_raw = state.get("citations", state.get("chunks", []))
         return AgentAnswerRead(
             task_id=task.id,
             answer=state.get("final_answer", ""),
             citations=[RetrievedChunkRead(**c) for c in citations_raw if isinstance(c, dict)],
+            policy_decision=policy_decision,
+            model_version=self.settings.llm_model or f"{self.settings.llm_provider}:default",
+            metrics={"weak_reward": reward.reward, "retrieval_limit": len(citations_raw)},
         )
 
     def analyze(self, paper_id: str, analysis_type: str, user_id: str = "default") -> AgentAnswerRead:
@@ -83,9 +95,13 @@ class PaperAgentService:
             user_id=user_id,
             paper_id=paper_id,
         )
+        policy_decision = self.bandit_service.choose(task)
+        self.bandit_service.record_decision(task, policy_decision)
         self.paper_service.search(paper_id, analysis_type, limit=1)
         retriever = PaperHermesRetriever(
-            paper_retriever=self.paper_service.retriever, paper_id=paper_id
+            paper_retriever=self.paper_service.retriever,
+            paper_id=paper_id,
+            limit=self.bandit_service.retrieval_limit(policy_decision["action"]),
         )
         graph = build_paper_graph(
             llm=self.llm,
@@ -100,6 +116,8 @@ class PaperAgentService:
             "user_id": user_id,
             "task_id": task.id,
             "task_type": analysis_type,
+            "strategy": policy_decision["action"],
+            "retrieval_limit": self.bandit_service.retrieval_limit(policy_decision["action"]),
         })
         for step in state.get("trace_steps", []):
             self.trace_service.record_step(
@@ -111,10 +129,14 @@ class PaperAgentService:
                 retrieved_chunks=step.get("retrieved_chunks", []),
             )
         self.trace_service.finish_task(task.id, state.get("final_answer", ""))
-        self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
+        reward = self.reward_service.record_weak_reward(self.trace_service.get_task(task.id) or task)
+        self.bandit_service.update_from_reward(task.id, reward)
         citations_raw = state.get("citations", state.get("chunks", []))
         return AgentAnswerRead(
             task_id=task.id,
             answer=state.get("final_answer", ""),
             citations=[RetrievedChunkRead(**c) for c in citations_raw if isinstance(c, dict)],
+            policy_decision=policy_decision,
+            model_version=self.settings.llm_model or f"{self.settings.llm_provider}:default",
+            metrics={"weak_reward": reward.reward, "retrieval_limit": len(citations_raw)},
         )

@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_base_url: str = ""
     llm_api_style: str = "responses"
+    policy_name: str = "fixed"
+    policy_alpha: float = 0.5
+    policy_epsilon: float = 0.1
+    policy_min_samples: int = 1
     embedding_provider: str = "stub"
     embedding_api_key: str = ""
     embedding_model: str = ""
@@ -52,6 +56,10 @@ class Settings(BaseSettings):
             "llm_model": os.getenv("LLM_MODEL"),
             "llm_base_url": os.getenv("LLM_BASE_URL"),
             "llm_api_style": os.getenv("LLM_API_STYLE"),
+            "policy_name": os.getenv("POLICY_NAME"),
+            "policy_alpha": os.getenv("POLICY_ALPHA"),
+            "policy_epsilon": os.getenv("POLICY_EPSILON"),
+            "policy_min_samples": os.getenv("POLICY_MIN_SAMPLES"),
             "embedding_provider": os.getenv("EMBEDDING_PROVIDER"),
             "embedding_api_key": os.getenv("EMBEDDING_API_KEY"),
             "embedding_model": os.getenv("EMBEDDING_MODEL"),
