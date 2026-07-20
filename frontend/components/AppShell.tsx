@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Network,
   Puzzle,
+  TrendingUp,
   UploadCloud
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/memories", label: "研究记忆", icon: BrainCircuit },
   { href: "/skills", label: "分析技能", icon: Puzzle },
   { href: "/learning", label: "学习审核", icon: ListChecks },
+  { href: "/policy", label: "策略学习", icon: TrendingUp },
   { href: "/traces", label: "执行追踪", icon: History },
   { href: "/manual", label: "用户手册", icon: CircleHelp }
 ];

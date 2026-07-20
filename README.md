@@ -39,9 +39,9 @@ The [`training`](training/README.md) package provides paper-level leak-free data
 
 Private `.env` files, database backups, uploaded PDFs, vector-store data, and model weights are ignored by Git. The repository contains only synthetic fixtures under `examples/`; use the download/import scripts to obtain local data.
 
-## Roadmap
+## Implemented learning loop
 
-The next iteration will add structured citations, user feedback and reward events, Hybrid RAG policy arms, a LinUCB contextual-bandit controller, and a QLoRA SFT/DPO training pipeline. Each learned policy or model version will be evaluated against a fixed regression suite before activation.
+The current `v0.4.0` line includes structured page-level citations, user feedback and reward events, three retrieval policy arms, a LinUCB contextual-bandit controller with capped-IPS replay, and a QLoRA SFT/DPO training pipeline. Learned policies and model versions are evaluated against a fixed regression suite before activation. The next step is to train and register a model adapter on a CUDA machine, then deploy it behind the existing OpenAI-compatible interface.
 
 ## Security
 

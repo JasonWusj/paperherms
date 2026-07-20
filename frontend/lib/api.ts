@@ -121,6 +121,31 @@ export type FeedbackSubmission = {
   };
 };
 
+export type PolicySummary = {
+  policy_name: string;
+  policy_version: string;
+  actions: string[];
+  counts: Record<string, number>;
+  total_updates: number;
+  average_reward_by_action: Record<string, number>;
+};
+
+export type RewardSummary = {
+  event_count: number;
+  feedback_count: number;
+  average_reward: number;
+  average_final_reward: number;
+};
+
+export type PolicyReplay = {
+  method: string;
+  sample_count: number;
+  cumulative_regret: number;
+  policies: Record<string, { estimated_reward: number; matched_samples: number }>;
+  observed_arm_means: Record<string, number>;
+  warning: string;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${resolveApiBase()}${path}`, {
     ...options,
@@ -167,6 +192,9 @@ export const api = {
   agentTask: (taskId: string) => request<AgentTask>(`/agent/tasks/${taskId}`),
   agentTrace: (taskId: string) => request<TraceStep[]>(`/agent/tasks/${taskId}/trace`),
   agentLearning: (taskId: string) => request<AgentTaskLearning>(`/agent/tasks/${taskId}/learning`),
+  policySummary: () => request<PolicySummary>("/agent/policy/summary"),
+  rewardSummary: () => request<RewardSummary>("/agent/rewards/summary"),
+  replayPolicy: () => request<PolicyReplay>("/agent/policy/replay", { method: "POST" }),
   submitFeedback: (taskId: string, rating: -1 | 1, issueTags: string[] = [], comment = "") =>
     request<FeedbackSubmission>(`/agent/tasks/${taskId}/feedback`, {
       method: "POST",
