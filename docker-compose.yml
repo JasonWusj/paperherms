@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: docker.m.daocloud.io/library/postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-paperhermes}
+      POSTGRES_USER: ${POSTGRES_USER:-paperhermes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-paperhermes}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-paperhermes} -d ${POSTGRES_DB:-paperhermes}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: docker.m.daocloud.io/qdrant/qdrant:v1.15.5
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      APP_NAME: ${APP_NAME:-PaperHermes}
+      APP_ENV: production
+      API_PREFIX: /api
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-paperhermes}:${POSTGRES_PASSWORD:-paperhermes}@postgres:5432/${POSTGRES_DB:-paperhermes}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-paper_chunks}
+      UPLOAD_DIR: /app/uploads
+      LLM_PROVIDER: ${LLM_PROVIDER:-stub}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_STYLE: ${LLM_API_STYLE:-responses}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-stub}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-2}
+      EMBEDDING_MAX_LENGTH: ${EMBEDDING_MAX_LENGTH:-1024}
+      TRANSFORMERS_OFFLINE: ${TRANSFORMERS_OFFLINE:-1}
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-1}
+      TOKENIZERS_PARALLELISM: ${TOKENIZERS_PARALLELISM:-false}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - uploads_data:/app/uploads
+      - ./models:/app/models:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+        INTERNAL_API_BASE_URL: http://backend:8000/api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+      INTERNAL_API_BASE_URL: http://backend:8000/api
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000', {redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  uploads_data:

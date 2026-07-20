@@ -1,0 +1,40 @@
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    PIP_TRUSTED_HOST=mirrors.aliyun.com
+
+WORKDIR /app
+
+RUN sed -i \
+        -e 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+        -e 's|http://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+        /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY backend ./backend
+COPY agent_core ./agent_core
+COPY rag ./rag
+COPY tools ./tools
+COPY evaluator ./evaluator
+
+RUN pip install --upgrade pip
+
+RUN pip install \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com \
+    torch==2.5.1+cpu
+
+RUN pip install .
+
+RUN mkdir -p /app/uploads
+
+EXPOSE 8000
+
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,2 @@
+{"case_id":"demo-method-001","task_type":"method","question":"请总结论文的核心方法，并指出证据所在章节。","expected_sections":["Introduction","Method"]}
+{"case_id":"demo-experiment-001","task_type":"experiments","question":"论文使用了哪些数据集和评价指标？请引用原文证据。","expected_sections":["Experiments","Results"]}

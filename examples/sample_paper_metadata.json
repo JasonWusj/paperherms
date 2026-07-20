@@ -1,0 +1,7 @@
+{
+  "title": "Example Paper (metadata only)",
+  "authors": ["Example Author"],
+  "abstract": "This is a synthetic metadata fixture for local tests. It contains no paper text or private data.",
+  "source": "synthetic",
+  "license": "internal-demo"
+}

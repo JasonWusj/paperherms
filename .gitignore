@@ -1,0 +1,64 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+node_modules/
+.next/
+
+# Runtime data and generated artifacts
+uploads/
+uploaded_papers/
+qdrant_storage/
+postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+
+# Private datasets, database dumps, and large binary assets
+backups/
+import_papers/
+*.sql
+*.dump
+*.pdf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+models/*
+!models/README.md
+!models/.gitkeep
+paperhermes-docker-deploy.zip
+
+# Local/editor/OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Tooling
+.codex/
